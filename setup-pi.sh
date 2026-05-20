@@ -77,10 +77,6 @@ xset -dpms
 # Rotate display to portrait
 xrandr --output HDMI-A-2 --rotate right
 
-# Start local proxy (handles Plex + Immich requests, avoids CORS)
-python3 "$HOME/now-playing/proxy.py" &
-sleep 2
-
 # Launch Chromium in kiosk mode
 chromium \
   --kiosk \
@@ -91,8 +87,9 @@ chromium \
   --disable-features=TranslateUI \
   --disable-pinch \
   --overscroll-history-navigation=0 \
+  --disable-web-security \
   --user-data-dir=$HOME/.config/chromium-kiosk \
-  http://localhost:8080
+  "file://$HOME/now-playing/index.html"
 KIOSK
 chmod +x "$HOME/now-playing/launch-kiosk.sh"
 

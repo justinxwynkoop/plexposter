@@ -573,7 +573,9 @@ async function fetchPlex() {
     return;
   }
   try {
-    const res = await fetch(`/api/plex/sessions?url=${encodeURIComponent(cfg.plexUrl)}&token=${encodeURIComponent(cfg.plexToken)}`);
+    const res = await fetch(`${cfg.plexUrl}/status/sessions?X-Plex-Token=${cfg.plexToken}`, {
+      headers: { Accept: 'application/json' }
+    });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const sessions = data?.MediaContainer?.Metadata || [];
@@ -607,34 +609,8 @@ function showNowPlaying(session) {
     stopClock();
   }
 
-  const isMovie = session.type === 'movie';
-  const title = isMovie ? session.title : `${session.grandparentTitle} — S${String(session.parentIndex).padStart(2,'0')}E${String(session.index).padStart(2,'0')}`;
-  $('title').textContent = title;
-  $('tagline').textContent = session.tagline || '';
-  $('d-year').textContent = session.year || '—';
-  $('d-runtime').textContent = session.duration ? fmtRuntime(session.duration) : '—';
-  $('rating').innerHTML = session.rating ? starsHTML(session.rating) : '';
-
-  const director = session.Director?.[0]?.tag || '';
-  $('d-director').textContent = director || '—';
-
-  const mediaPart = session.Media?.[0];
-  const videoStream = mediaPart?.Stream?.find?.(s=>s.streamType===1) || mediaPart;
-  const res = mediaPart?.videoResolution ? mediaPart.videoResolution.toUpperCase() : '—';
-  $('d-res').textContent = res;
-
-  const genres = session.Genre?.slice(0,3).map(g=>g.tag) || [];
-  $('genres').innerHTML = genres.map(g=>`<span class="genre-pill">${g}</span>`).join('');
-
-  const viewOff = session.viewOffset || 0;
-  const dur = session.duration || 1;
-  const pct = Math.min(100, (viewOff/dur)*100);
-  $('progress-bar-fill').style.width = pct + '%';
-  $('p-elapsed').textContent = fmtTime(viewOff);
-  $('p-remaining').textContent = '-' + fmtTime(dur - viewOff);
-
   const thumbPath = session.thumb;
-  const posterUrl = thumbPath ? `/api/plex/thumb?url=${encodeURIComponent(cfg.plexUrl)}&token=${encodeURIComponent(cfg.plexToken)}&path=${encodeURIComponent(thumbPath)}` : '';
+  const posterUrl = thumbPath ? `${cfg.plexUrl}${thumbPath}?X-Plex-Token=${cfg.plexToken}` : '';
   if (posterUrl && $('poster').src !== posterUrl) {
     $('poster').src = posterUrl;
     backdrop.style.backgroundImage = `url('${posterUrl}')`;
