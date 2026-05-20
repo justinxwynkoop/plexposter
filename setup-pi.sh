@@ -74,8 +74,8 @@ xset s off
 xset s noblank
 xset -dpms
 
-# Optional: rotate display if monitor is portrait
-# xrandr --output HDMI-1 --rotate right
+# Rotate display to portrait
+xrandr --output HDMI-A-2 --rotate right
 
 # Launch Chromium in kiosk mode
 chromium \
