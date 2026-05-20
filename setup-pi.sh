@@ -17,7 +17,7 @@ sudo apt-get update -qq && sudo apt-get upgrade -y -qq
 # ── 2. Install Chromium and display tools ─────────────────────
 echo "[2/6] Installing Chromium, X server utilities, and unclutter..."
 sudo apt-get install -y -qq \
-  chromium-browser \
+  chromium \
   xdotool \
   unclutter \
   x11-xserver-utils \
@@ -78,7 +78,7 @@ xset -dpms
 # xrandr --output HDMI-1 --rotate right
 
 # Launch Chromium in kiosk mode
-chromium-browser \
+chromium \
   --kiosk \
   --noerrdialogs \
   --disable-infobars \
