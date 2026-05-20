@@ -68,7 +68,7 @@ cat > "$HOME/now-playing/launch-kiosk.sh" << 'KIOSK'
 # Hide cursor after 0.5s of inactivity
 unclutter -idle 0.5 -root &
 
-# Disable screen blanking (belt-and-suspenders)
+# Disable screen blanking
 sleep 2
 xset s off
 xset s noblank
@@ -76,6 +76,10 @@ xset -dpms
 
 # Rotate display to portrait
 xrandr --output HDMI-A-2 --rotate right
+
+# Start local proxy (handles Plex + Immich requests, avoids CORS)
+python3 "$HOME/now-playing/proxy.py" &
+sleep 2
 
 # Launch Chromium in kiosk mode
 chromium \
@@ -87,9 +91,8 @@ chromium \
   --disable-features=TranslateUI \
   --disable-pinch \
   --overscroll-history-navigation=0 \
-  --disable-web-security \
   --user-data-dir=$HOME/.config/chromium-kiosk \
-  "file://$HOME/now-playing/index.html"
+  http://localhost:8080
 KIOSK
 chmod +x "$HOME/now-playing/launch-kiosk.sh"
 

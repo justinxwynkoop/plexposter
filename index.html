@@ -573,9 +573,7 @@ async function fetchPlex() {
     return;
   }
   try {
-    const res = await fetch(`${cfg.plexUrl}/status/sessions?X-Plex-Token=${cfg.plexToken}`, {
-      headers: { Accept: 'application/json' }
-    });
+    const res = await fetch(`/api/plex/sessions?url=${encodeURIComponent(cfg.plexUrl)}&token=${encodeURIComponent(cfg.plexToken)}`);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const sessions = data?.MediaContainer?.Metadata || [];
@@ -636,7 +634,7 @@ function showNowPlaying(session) {
   $('p-remaining').textContent = '-' + fmtTime(dur - viewOff);
 
   const thumbPath = session.thumb;
-  const posterUrl = thumbPath ? `${cfg.plexUrl}${thumbPath}?X-Plex-Token=${cfg.plexToken}` : '';
+  const posterUrl = thumbPath ? `/api/plex/thumb?url=${encodeURIComponent(cfg.plexUrl)}&token=${encodeURIComponent(cfg.plexToken)}&path=${encodeURIComponent(thumbPath)}` : '';
   if (posterUrl && $('poster').src !== posterUrl) {
     $('poster').src = posterUrl;
     backdrop.style.backgroundImage = `url('${posterUrl}')`;
@@ -707,7 +705,7 @@ async function loadImmichPhotos() {
     slidePhotos = assets
       .filter(a => a.type === 'IMAGE' || !a.type)
       .map(a => ({
-        url: `${cfg.immichUrl}/api/assets/${a.id}/thumbnail?size=preview&key=${cfg.immichKey}`,
+        url: `/api/immich/thumb?url=${encodeURIComponent(cfg.immichUrl)}&key=${encodeURIComponent(cfg.immichKey)}&id=${a.id}`,
         caption: a.exifInfo?.city || a.originalFileName || ''
       }));
     shuffle(slidePhotos);
