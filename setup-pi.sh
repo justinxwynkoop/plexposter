@@ -88,7 +88,7 @@ chromium \
   --disable-pinch \
   --overscroll-history-navigation=0 \
   --disable-web-security \
-  --user-data-dir=/tmp/chromium-kiosk \
+  --user-data-dir=$HOME/.config/chromium-kiosk \
   "file://$HOME/now-playing/index.html"
 KIOSK
 chmod +x "$HOME/now-playing/launch-kiosk.sh"
