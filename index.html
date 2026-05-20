@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Now Playing</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --accent: #e5a00d;
+    --text: #f0ede6;
+    --muted: rgba(240,237,230,0.55);
+    --bg: #0a0a0c;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', 'Times New Roman', serif;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  /* ── BACKDROP ── */
+  #backdrop {
+    position: fixed;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(40px) brightness(0.3) saturate(1.4);
+    transform: scale(1.1);
+    transition: background-image 1.2s ease;
+  }
+
+  /* ── SLIDESHOW (idle mode) ── */
+  #slideshow {
+    position: fixed;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+  }
+  #slideshow.visible { opacity: 1; }
+  #slideshow-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  #slideshow-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%);
+  }
+  #slideshow-caption {
+    position: absolute;
+    bottom: 48px;
+    left: 60px;
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+  }
+  #idle-clock {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+  #idle-clock.visible { opacity: 1; }
+  #clock-time {
+    font-size: clamp(72px, 10vw, 120px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: rgba(255,255,255,0.92);
+    line-height: 1;
+  }
+  #clock-date {
+    font-size: 18px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    margin-top: 12px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 300;
+  }
+
+  /* ── NOW PLAYING ── */
+  #now-playing {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+    pointer-events: none;
+  }
+  #now-playing.visible { opacity: 1; }
+
+  #poster-wrap {
+    position: relative;
+    flex-shrink: 0;
+  }
+  #poster {
+    width: clamp(220px, 22vw, 320px);
+    border-radius: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08);
+    display: block;
+  }
+  #poster-shine {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  #meta {
+    margin-left: clamp(32px, 5vw, 72px);
+    max-width: 500px;
+  }
+  #label {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #label::before {
+    content: '';
+    display: inline-block;
+    width: 28px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+  }
+  #title {
+    font-size: clamp(32px, 4.5vw, 62px);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  #tagline {
+    font-style: italic;
+    font-size: clamp(14px, 1.5vw, 18px);
+    color: var(--muted);
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+  #details {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+  .detail-item {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+  .detail-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(240,237,230,0.35);
+    margin-bottom: 4px;
+  }
+  .detail-value {
+    font-size: 15px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* ── PROGRESS BAR ── */
+  #progress-wrap {
+    margin-top: 4px;
+  }
+  #progress-bar-bg {
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    height: 3px;
+    width: 100%;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  #progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 5s linear;
+    width: 0%;
+  }
+  #progress-times {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── RATING STARS ── */
+  #rating {
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .star { color: var(--accent); font-size: 16px; }
+  .star.empty { color: rgba(240,237,230,0.2); }
+  #rating-text {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  /* ── GENRES ── */
+  #genres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+  .genre-pill {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(229, 160, 13, 0.85);
+    border: 1px solid rgba(229, 160, 13, 0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+  }
+
+  /* ── CONFIG OVERLAY ── */
+  #config-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+  #config-overlay.open { display: flex; }
+  #config-box {
+    background: #16161a;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 40px;
+    width: min(560px, 90vw);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  #config-box h2 {
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text);
+    font-family: Georgia, serif;
+  }
+  #config-box p.sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 28px;
+    line-height: 1.6;
+  }
+  .cfg-group { margin-bottom: 24px; }
+  .cfg-group label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .cfg-group input, .cfg-group select {
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+  .cfg-group input:focus, .cfg-group select:focus {
+    border-color: var(--accent);
+  }
+  .cfg-group select option { background: #16161a; }
+  #config-save {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    margin-top: 8px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+  .cfg-section-title {
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    margin-top: 28px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(229,160,13,0.2);
+  }
+  .cfg-hint {
+    font-size: 12px;
+    color: rgba(240,237,230,0.35);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  #status-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 6px;
+    background: #888;
+    vertical-align: middle;
+  }
+  #status-dot.playing { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+  #status-dot.idle { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  #status-text {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  #open-config-hint {
+    position: fixed;
+    bottom: 20px;
+    right: 24px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    color: rgba(255,255,255,0.18);
+    letter-spacing: 0.1em;
+    z-index: 10;
+  }
+  #status-bar {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<div id="backdrop"></div>
+<div id="slideshow">
+  <img id="slideshow-img" src="" alt="">
+  <div id="slideshow-vignette"></div>
+  <div id="idle-clock">
+    <div id="clock-time">12:00</div>
+    <div id="clock-date">Monday, January 1</div>
+  </div>
+  <div id="slideshow-caption"></div>
+</div>
+
+<div id="now-playing">
+  <div id="poster-wrap">
+    <img id="poster" src="" alt="Movie Poster">
+    <div id="poster-shine"></div>
+  </div>
+  <div id="meta">
+    <div id="label">Now Playing</div>
+    <div id="title">Movie Title</div>
+    <div id="tagline"></div>
+    <div id="genres"></div>
+    <div id="rating"></div>
+    <div id="details">
+      <div class="detail-item">
+        <div class="detail-label">Year</div>
+        <div class="detail-value" id="d-year">—</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Director</div>
+        <div class="detail-value" id="d-director">—</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Runtime</div>
+        <div class="detail-value" id="d-runtime">—</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Resolution</div>
+        <div class="detail-value" id="d-res">—</div>
+      </div>
+    </div>
+    <div id="progress-wrap">
+      <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+      <div id="progress-times">
+        <span id="p-elapsed">0:00:00</span>
+        <span id="p-remaining">0:00:00</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="status-bar">
+  <span id="status-dot"></span>
+  <span id="status-text">Connecting…</span>
+</div>
+<div id="open-config-hint">Press C to configure</div>
+
+<!-- CONFIG OVERLAY -->
+<div id="config-overlay">
+  <div id="config-box">
+    <h2>Now Playing Setup</h2>
+    <p class="sub">Configure your Plex and Immich connections. Settings are saved locally in your browser.</p>
+
+    <div class="cfg-section-title">Plex</div>
+    <div class="cfg-group">
+      <label>Plex Server URL</label>
+      <input id="cfg-plex-url" type="text" placeholder="http://192.168.1.x:32400">
+      <p class="cfg-hint">Your Plex Media Server IP and port. Use the LAN IP, not app.plex.tv.</p>
+    </div>
+    <div class="cfg-group">
+      <label>Plex Token (X-Plex-Token)</label>
+      <input id="cfg-plex-token" type="text" placeholder="xxxxxxxxxxxxxxxxxxxx">
+      <p class="cfg-hint">Find it: Plex Web → any media → ⋮ → Get Info → View XML → grab token from URL.</p>
+    </div>
+    <div class="cfg-group">
+      <label>Player / Client to Watch</label>
+      <input id="cfg-plex-player" type="text" placeholder="Leave blank to show any active session">
+      <p class="cfg-hint">Optional. Enter the exact Plex client name (e.g. "Living Room TV") to only show that player.</p>
+    </div>
+    <div class="cfg-group">
+      <label>Poll Interval (seconds)</label>
+      <input id="cfg-plex-interval" type="number" value="5" min="3" max="30">
+    </div>
+
+    <div class="cfg-section-title">Idle Screen</div>
+    <div class="cfg-group">
+      <label>Idle Mode</label>
+      <select id="cfg-idle-mode">
+        <option value="immich">Immich Photos</option>
+        <option value="local">Local Folder (via simple server)</option>
+        <option value="clock">Clock Only</option>
+      </select>
+    </div>
+
+    <div id="immich-section">
+      <div class="cfg-group">
+        <label>Immich Server URL</label>
+        <input id="cfg-immich-url" type="text" placeholder="http://192.168.1.x:2283">
+      </div>
+      <div class="cfg-group">
+        <label>Immich API Key</label>
+        <input id="cfg-immich-key" type="text" placeholder="Your Immich API key">
+        <p class="cfg-hint">Immich → Account Settings → API Keys → New API Key.</p>
+      </div>
+      <div class="cfg-group">
+        <label>Album ID (optional)</label>
+        <input id="cfg-immich-album" type="text" placeholder="Leave blank to use all your photos">
+        <p class="cfg-hint">Immich → Albums → open album → grab the UUID from the URL.</p>
+      </div>
+    </div>
+
+    <div id="local-section" style="display:none">
+      <div class="cfg-group">
+        <label>Photo Server URL</label>
+        <input id="cfg-local-url" type="text" placeholder="http://localhost:8080">
+        <p class="cfg-hint">Run a simple HTTP server in your photo folder on the Pi:<br><code style="font-size:11px;color:var(--accent)">python3 -m http.server 8080</code><br>This app will fetch a file list from it.</p>
+      </div>
+    </div>
+
+    <div class="cfg-group">
+      <label>Slideshow interval (seconds)</label>
+      <input id="cfg-slide-interval" type="number" value="30" min="5" max="300">
+    </div>
+
+    <button id="config-save">Save & Apply</button>
+  </div>
+</div>
+
+<script>
+const S = {
+  get(k, def) { try { return JSON.parse(localStorage.getItem('nps_'+k)) ?? def; } catch { return def; } },
+  set(k, v) { localStorage.setItem('nps_'+k, JSON.stringify(v)); }
+};
+
+const cfg = {
+  plexUrl: S.get('plexUrl', ''),
+  plexToken: S.get('plexToken', ''),
+  plexPlayer: S.get('plexPlayer', ''),
+  plexInterval: S.get('plexInterval', 5),
+  idleMode: S.get('idleMode', 'immich'),
+  immichUrl: S.get('immichUrl', ''),
+  immichKey: S.get('immichKey', ''),
+  immichAlbum: S.get('immichAlbum', ''),
+  localUrl: S.get('localUrl', ''),
+  slideInterval: S.get('slideInterval', 30),
+};
+
+const $ = id => document.getElementById(id);
+const backdrop = $('backdrop');
+const nowPlaying = $('now-playing');
+const slideshow = $('slideshow');
+const idleClock = $('idle-clock');
+
+let currentState = 'idle';
+let pollTimer = null;
+let slideTimer = null;
+let slidePhotos = [];
+let slideIdx = 0;
+let clockTimer = null;
+
+function showConfig() {
+  $('cfg-plex-url').value = cfg.plexUrl;
+  $('cfg-plex-token').value = cfg.plexToken;
+  $('cfg-plex-player').value = cfg.plexPlayer;
+  $('cfg-plex-interval').value = cfg.plexInterval;
+  $('cfg-idle-mode').value = cfg.idleMode;
+  $('cfg-immich-url').value = cfg.immichUrl;
+  $('cfg-immich-key').value = cfg.immichKey;
+  $('cfg-immich-album').value = cfg.immichAlbum;
+  $('cfg-local-url').value = cfg.localUrl;
+  $('cfg-slide-interval').value = cfg.slideInterval;
+  toggleIdleSection();
+  $('config-overlay').classList.add('open');
+}
+
+function toggleIdleSection() {
+  const m = $('cfg-idle-mode').value;
+  $('immich-section').style.display = m === 'immich' ? '' : 'none';
+  $('local-section').style.display = m === 'local' ? '' : 'none';
+}
+$('cfg-idle-mode').addEventListener('change', toggleIdleSection);
+
+$('config-save').addEventListener('click', () => {
+  cfg.plexUrl = $('cfg-plex-url').value.replace(/\/$/, '');
+  cfg.plexToken = $('cfg-plex-token').value.trim();
+  cfg.plexPlayer = $('cfg-plex-player').value.trim();
+  cfg.plexInterval = parseInt($('cfg-plex-interval').value) || 5;
+  cfg.idleMode = $('cfg-idle-mode').value;
+  cfg.immichUrl = $('cfg-immich-url').value.replace(/\/$/, '');
+  cfg.immichKey = $('cfg-immich-key').value.trim();
+  cfg.immichAlbum = $('cfg-immich-album').value.trim();
+  cfg.localUrl = $('cfg-local-url').value.replace(/\/$/, '');
+  cfg.slideInterval = parseInt($('cfg-slide-interval').value) || 30;
+  Object.keys(cfg).forEach(k => S.set(k, cfg[k]));
+  $('config-overlay').classList.remove('open');
+  init();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'c' || e.key === 'C') {
+    if ($('config-overlay').classList.contains('open'))
+      $('config-overlay').classList.remove('open');
+    else showConfig();
+  }
+  if (e.key === 'Escape') $('config-overlay').classList.remove('open');
+});
+
+function setStatus(state, text) {
+  $('status-dot').className = state;
+  $('status-text').textContent = text;
+}
+
+function fmtTime(ms) {
+  const s = Math.floor(ms/1000);
+  const h = Math.floor(s/3600);
+  const m = Math.floor((s%3600)/60);
+  const sec = s%60;
+  return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function fmtRuntime(ms) {
+  const m = Math.round(ms/60000);
+  return `${Math.floor(m/60)}h ${m%60}m`;
+}
+
+function starsHTML(rating) {
+  if (!rating) return '';
+  const full = Math.round(rating/2);
+  let s = '';
+  for (let i=1;i<=5;i++) s += `<span class="star${i>full?' empty':''}">★</span>`;
+  return s + `<span id="rating-text">${(rating/10*5).toFixed(1)}/5</span>`;
+}
+
+async function fetchPlex() {
+  if (!cfg.plexUrl || !cfg.plexToken) {
+    setStatus('', 'Not configured — press C');
+    showIdle();
+    return;
+  }
+  try {
+    const res = await fetch(`${cfg.plexUrl}/status/sessions?X-Plex-Token=${cfg.plexToken}`, {
+      headers: { Accept: 'application/json' }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const sessions = data?.MediaContainer?.Metadata || [];
+    let session = sessions.find(s => s.type === 'movie');
+    if (!session) session = sessions.find(s => s.type === 'episode');
+    if (cfg.plexPlayer && session) {
+      session = sessions.find(s =>
+        (s.type === 'movie' || s.type === 'episode') &&
+        s.Player?.title === cfg.plexPlayer
+      );
+    }
+    if (session) {
+      showNowPlaying(session);
+    } else {
+      showIdle();
+    }
+  } catch(e) {
+    setStatus('', 'Plex error: ' + e.message);
+    showIdle();
+  }
+}
+
+function showNowPlaying(session) {
+  setStatus('playing', 'Playing');
+  if (currentState !== 'playing') {
+    currentState = 'playing';
+    nowPlaying.classList.add('visible');
+    slideshow.classList.remove('visible');
+    idleClock.classList.remove('visible');
+    stopSlideshow();
+    stopClock();
+  }
+
+  const isMovie = session.type === 'movie';
+  const title = isMovie ? session.title : `${session.grandparentTitle} — S${String(session.parentIndex).padStart(2,'0')}E${String(session.index).padStart(2,'0')}`;
+  $('title').textContent = title;
+  $('tagline').textContent = session.tagline || '';
+  $('d-year').textContent = session.year || '—';
+  $('d-runtime').textContent = session.duration ? fmtRuntime(session.duration) : '—';
+  $('rating').innerHTML = session.rating ? starsHTML(session.rating) : '';
+
+  const director = session.Director?.[0]?.tag || '';
+  $('d-director').textContent = director || '—';
+
+  const mediaPart = session.Media?.[0];
+  const videoStream = mediaPart?.Stream?.find?.(s=>s.streamType===1) || mediaPart;
+  const res = mediaPart?.videoResolution ? mediaPart.videoResolution.toUpperCase() : '—';
+  $('d-res').textContent = res;
+
+  const genres = session.Genre?.slice(0,3).map(g=>g.tag) || [];
+  $('genres').innerHTML = genres.map(g=>`<span class="genre-pill">${g}</span>`).join('');
+
+  const viewOff = session.viewOffset || 0;
+  const dur = session.duration || 1;
+  const pct = Math.min(100, (viewOff/dur)*100);
+  $('progress-bar-fill').style.width = pct + '%';
+  $('p-elapsed').textContent = fmtTime(viewOff);
+  $('p-remaining').textContent = '-' + fmtTime(dur - viewOff);
+
+  const thumbPath = session.thumb;
+  const posterUrl = thumbPath ? `${cfg.plexUrl}${thumbPath}?X-Plex-Token=${cfg.plexToken}` : '';
+  if (posterUrl && $('poster').src !== posterUrl) {
+    $('poster').src = posterUrl;
+    backdrop.style.backgroundImage = `url('${posterUrl}')`;
+  }
+  if (!posterUrl) {
+    $('poster').src = '';
+    backdrop.style.backgroundImage = '';
+  }
+}
+
+function showIdle() {
+  if (currentState !== 'idle') {
+    currentState = 'idle';
+    nowPlaying.classList.remove('visible');
+    slideshow.classList.add('visible');
+    setStatus('idle', 'Idle');
+    startClock();
+    loadSlidePhotos();
+  }
+}
+
+function startClock() {
+  stopClock();
+  idleClock.classList.add('visible');
+  function tick() {
+    const now = new Date();
+    const h = now.getHours(), m = now.getMinutes();
+    $('clock-time').textContent = `${h}:${String(m).padStart(2,'0')}`;
+    $('clock-date').textContent = now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  }
+  tick();
+  clockTimer = setInterval(tick, 10000);
+}
+
+function stopClock() {
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+}
+
+async function loadSlidePhotos() {
+  if (cfg.idleMode === 'clock') {
+    $('slideshow-img').src = '';
+    $('slideshow-caption').textContent = '';
+    return;
+  }
+  if (cfg.idleMode === 'immich') {
+    await loadImmichPhotos();
+  } else if (cfg.idleMode === 'local') {
+    await loadLocalPhotos();
+  }
+  if (slidePhotos.length > 0 && !slideTimer) {
+    showSlide(0);
+    startSlideshow();
+  }
+}
+
+async function loadImmichPhotos() {
+  if (!cfg.immichUrl || !cfg.immichKey) return;
+  try {
+    let url = cfg.immichAlbum
+      ? `${cfg.immichUrl}/api/albums/${cfg.immichAlbum}/assets`
+      : `${cfg.immichUrl}/api/assets?type=IMAGE&size=500`;
+    const res = await fetch(url, {
+      headers: { 'x-api-key': cfg.immichKey }
+    });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const assets = Array.isArray(data) ? data : (data.assets || []);
+    slidePhotos = assets
+      .filter(a => a.type === 'IMAGE' || !a.type)
+      .map(a => ({
+        url: `${cfg.immichUrl}/api/assets/${a.id}/thumbnail?size=preview&key=${cfg.immichKey}`,
+        caption: a.exifInfo?.city || a.originalFileName || ''
+      }));
+    shuffle(slidePhotos);
+  } catch(e) {
+    setStatus('idle', 'Immich error: '+e.message);
+  }
+}
+
+async function loadLocalPhotos() {
+  if (!cfg.localUrl) return;
+  try {
+    const res = await fetch(cfg.localUrl+'/');
+    const text = await res.text();
+    const matches = [...text.matchAll(/href="([^"]+\.(jpg|jpeg|png|webp))"/gi)];
+    slidePhotos = matches.map(m => ({
+      url: cfg.localUrl + '/' + m[1],
+      caption: m[1].replace(/\.[^.]+$/,'').replace(/[-_]/g,' ')
+    }));
+    shuffle(slidePhotos);
+  } catch(e) {
+    setStatus('idle', 'Local photo error: '+e.message);
+  }
+}
+
+function shuffle(arr) {
+  for (let i=arr.length-1;i>0;i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+}
+
+function showSlide(idx) {
+  if (!slidePhotos.length) return;
+  const photo = slidePhotos[idx % slidePhotos.length];
+  const img = $('slideshow-img');
+  img.style.opacity = 0;
+  img.style.transition = 'opacity 1.2s ease';
+  const tmp = new Image();
+  tmp.onload = () => {
+    img.src = tmp.src;
+    backdrop.style.backgroundImage = `url('${tmp.src}')`;
+    requestAnimationFrame(()=>{ img.style.opacity=1; });
+    $('slideshow-caption').textContent = photo.caption || '';
+  };
+  tmp.src = photo.url;
+  slideIdx = idx;
+}
+
+function startSlideshow() {
+  stopSlideshow();
+  slideTimer = setInterval(() => {
+    slideIdx = (slideIdx+1) % Math.max(slidePhotos.length,1);
+    showSlide(slideIdx);
+  }, cfg.slideInterval * 1000);
+}
+
+function stopSlideshow() {
+  if (slideTimer) { clearInterval(slideTimer); slideTimer = null; }
+}
+
+function init() {
+  stopSlideshow();
+  stopClock();
+  if (pollTimer) clearInterval(pollTimer);
+  currentState = '';
+  slidePhotos = [];
+  slideIdx = 0;
+  if (!cfg.plexUrl || !cfg.plexToken) {
+    showConfig();
+    return;
+  }
+  fetchPlex();
+  pollTimer = setInterval(fetchPlex, cfg.plexInterval * 1000);
+}
+
+init();
+</script>
+</body>
+</html>
