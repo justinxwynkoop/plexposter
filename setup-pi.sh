@@ -74,8 +74,12 @@ xset s off
 xset s noblank
 xset -dpms
 
-# Rotate display to portrait
-xrandr --output HDMI-A-2 --rotate right
+# ── Portrait rotation (optional) ──────────────────────────────
+# If your monitor is mounted vertically, uncomment the line below.
+# First run `xrandr` to find your output name (e.g. HDMI-1, HDMI-A-1, HDMI-A-2).
+# Use --rotate right or --rotate left depending on which way you turned the monitor.
+# Alternatively, add display_rotate=1 to /boot/firmware/config.txt for hardware rotation.
+# xrandr --output HDMI-A-1 --rotate right
 
 # Launch Chromium in kiosk mode
 chromium \
@@ -97,32 +101,18 @@ chmod +x "$HOME/now-playing/launch-kiosk.sh"
 # ── 6. Autostart on login ─────────────────────────────────────
 echo "[6/6] Setting up autostart..."
 
-# Method A: LXDE autostart (works on Pi OS with desktop)
+# Method A: XDG autostart .desktop file (most reliable on Pi OS Desktop)
+mkdir -p "$HOME/.config/autostart"
+printf '[Desktop Entry]\nType=Application\nName=Now Playing Kiosk\nExec=bash -c "sleep 10 && %s/now-playing/launch-kiosk.sh"\nHidden=false\nX-GNOME-Autostart-enabled=true\n' "$HOME" > "$HOME/.config/autostart/kiosk.desktop"
+echo "  ✓ Created autostart desktop entry"
+
+# Method B: LXDE autostart (fallback)
 mkdir -p "$HOME/.config/lxsession/LXDE-pi"
 AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
 if ! grep -q "launch-kiosk" "$AUTOSTART" 2>/dev/null; then
   echo "@$HOME/now-playing/launch-kiosk.sh" >> "$AUTOSTART"
   echo "  ✓ Added to LXDE autostart"
 fi
-
-# Method B: systemd user service (works on Pi OS Lite with startx)
-mkdir -p "$HOME/.config/systemd/user"
-cat > "$HOME/.config/systemd/user/now-playing.service" << 'SERVICE'
-[Unit]
-Description=Now Playing Kiosk
-After=graphical-session.target
-Wants=graphical-session.target
-
-[Service]
-Type=simple
-ExecStart=%h/now-playing/launch-kiosk.sh
-Restart=on-failure
-RestartSec=5s
-Environment=DISPLAY=:0
-
-[Install]
-WantedBy=graphical-session.target
-SERVICE
 
 echo ""
 echo "  ✅ Setup complete!"
