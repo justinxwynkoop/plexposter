@@ -88,6 +88,7 @@ chromium \
   --disable-pinch \
   --overscroll-history-navigation=0 \
   --disable-web-security \
+  --password-store=basic \
   --user-data-dir=$HOME/.config/chromium-kiosk \
   "file://$HOME/now-playing/index.html"
 KIOSK
