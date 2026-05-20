@@ -94,22 +94,44 @@
     position: fixed;
     inset: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 28px;
     opacity: 0;
     transition: opacity 1.5s ease;
     pointer-events: none;
   }
   #now-playing.visible { opacity: 1; }
 
+  #label {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #label::before, #label::after {
+    content: '';
+    display: inline-block;
+    width: 28px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+  }
+
   #poster-wrap {
     position: relative;
-    flex-shrink: 0;
   }
   #poster {
-    width: clamp(220px, 22vw, 320px);
+    height: clamp(300px, 72vh, 820px);
+    width: auto;
     border-radius: 12px;
-    box-shadow: 0 30px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08);
+    box-shadow: 0 40px 100px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.08);
     display: block;
   }
   #poster-shine {
@@ -118,31 +140,6 @@
     border-radius: 12px;
     background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%);
     pointer-events: none;
-  }
-
-  #meta {
-    margin-left: clamp(32px, 5vw, 72px);
-    max-width: 500px;
-  }
-  #label {
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  #label::before {
-    content: '';
-    display: inline-block;
-    width: 28px;
-    height: 2px;
-    background: var(--accent);
-    border-radius: 1px;
   }
   #title {
     font-size: clamp(32px, 4.5vw, 62px);
@@ -380,41 +377,10 @@
 </div>
 
 <div id="now-playing">
+  <div id="label">Now Playing</div>
   <div id="poster-wrap">
     <img id="poster" src="" alt="Movie Poster">
     <div id="poster-shine"></div>
-  </div>
-  <div id="meta">
-    <div id="label">Now Playing</div>
-    <div id="title">Movie Title</div>
-    <div id="tagline"></div>
-    <div id="genres"></div>
-    <div id="rating"></div>
-    <div id="details">
-      <div class="detail-item">
-        <div class="detail-label">Year</div>
-        <div class="detail-value" id="d-year">—</div>
-      </div>
-      <div class="detail-item">
-        <div class="detail-label">Director</div>
-        <div class="detail-value" id="d-director">—</div>
-      </div>
-      <div class="detail-item">
-        <div class="detail-label">Runtime</div>
-        <div class="detail-value" id="d-runtime">—</div>
-      </div>
-      <div class="detail-item">
-        <div class="detail-label">Resolution</div>
-        <div class="detail-value" id="d-res">—</div>
-      </div>
-    </div>
-    <div id="progress-wrap">
-      <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
-      <div id="progress-times">
-        <span id="p-elapsed">0:00:00</span>
-        <span id="p-remaining">0:00:00</span>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -506,7 +472,7 @@ const cfg = {
   plexToken: S.get('plexToken', ''),
   plexPlayer: S.get('plexPlayer', ''),
   plexInterval: S.get('plexInterval', 5),
-  idleMode: S.get('idleMode', 'immich'),
+  idleMode: S.get('idleMode', 'clock'),
   immichUrl: S.get('immichUrl', ''),
   immichKey: S.get('immichKey', ''),
   immichAlbum: S.get('immichAlbum', ''),
