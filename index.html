@@ -599,7 +599,7 @@ function showNowPlaying(session) {
     stopClock();
   }
 
-  const thumbPath = session.thumb;
+  const thumbPath = session.type === 'episode' ? (session.grandparentThumb || session.thumb) : session.thumb;
   const posterUrl = thumbPath ? `${cfg.plexUrl}${thumbPath}?X-Plex-Token=${cfg.plexToken}` : '';
   if (posterUrl && $('poster').src !== posterUrl) {
     $('poster').src = posterUrl;
